@@ -1,0 +1,30 @@
+August 17
+    -- Add the personal log activty in there view_user.php 
+    -- Design the log_activity.php
+
+    Settings 
+        --add change admin password
+
+    Logout 
+        --make it functional
+
+August 18 
+    - Add a divider/Pagination the database // J: NO! i dont know AJAX
+
+    Settings
+       --add change admin password
+         add settings in display.php
+    
+    Logout
+        --make it functional
+
+    display.php 
+    - add the screensaver 
+
+August 25
+
+    display.php
+    - add the screensaver 
+
+    Settings
+    - add setting in the screensaver

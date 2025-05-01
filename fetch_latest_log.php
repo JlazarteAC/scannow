@@ -1,0 +1,103 @@
+<?php
+include 'connection.php';
+
+// Set default values for a guest user
+$isGuest = true;
+$access_denied = false; // Default to access granted
+$guest_message_display = 'none'; // Default to not show guest message
+$display_time_in = "N/A"; // Default Time In for guest
+$name = "UNKNOWN USER";
+$image = "Image/default.png";
+$status = "UNKNOWN";
+$department = "UNKNOWN";
+$school_id = "UNKNOWN";
+$log_time = "N/A";
+$bg_image = "Image/banner.jpg"; // Default background image
+$logo_image = "Image/default-logo.png"; // Default logo image
+$log_id = null; // Default log_id
+
+// Fetch the latest log entry
+$query = "SELECT * FROM log_entry ORDER BY timestamp DESC LIMIT 1";
+$result = $conn->query($query);
+
+if ($result && $result->num_rows > 0) {
+    $log_entry = $result->fetch_assoc();
+    $log_id = $log_entry['id']; // Get the log ID
+    $school_id = $log_entry['school_id'];
+    $log_time = date("h:i A", strtotime($log_entry['timestamp'])); // 12-hour format
+    $display_time_in = $log_time; // Set time in for logged-in users
+    $isGuest = false; // Assume user is not a guest
+
+    // Fetch user data
+    $user_query = "SELECT * FROM user WHERE school_id = ?";
+    $stmt = $conn->prepare($user_query);
+    $stmt->bind_param('s', $school_id);
+    $stmt->execute();
+    $user_result = $stmt->get_result();
+
+    if ($user_result && $user_result->num_rows > 0) {
+        $user = $user_result->fetch_assoc();
+        $name = trim($user['first_name'] . ' ' . ($user['middle_name'] ?? '') . ' ' . $user['last_name']);
+        $image = $user['image'];
+        $status_id = $user['status_id'];
+
+        // Check if enroll = 0
+        if ($user['enroll'] == 0) {
+            $access_denied = true;
+        }
+
+        // Fetch status and department data
+        $status_query = "
+            SELECT s.status_name, d.department_name, dc.logo_image, dc.bg_image 
+            FROM status s
+            LEFT JOIN department d ON s.department_id = d.department_id
+            LEFT JOIN display_color dc ON d.department_id = dc.department_id
+            WHERE s.status_id = ?
+        ";
+        $status_stmt = $conn->prepare($status_query);
+        $status_stmt->bind_param('i', $status_id);
+        $status_stmt->execute();
+        $status_result = $status_stmt->get_result();
+
+        if ($status_result && $status_result->num_rows > 0) {
+            $status_data = $status_result->fetch_assoc();
+            $status = $status_data['status_name'];
+            $department = $status_data['department_name'];
+            $logo_image = $status_data['logo_image'];
+            $bg_image = $status_data['bg_image'];
+
+            // If no department logo, use a default one
+            if (empty($logo_image) || $logo_image === "null") {
+                $logo_image = "Image/default-logo.png";
+            }
+
+            // If no background image, use a default one
+            if (empty($bg_image)) {
+                $bg_image = "Image/banner.jpg";
+            }
+
+            // Determine if the user is a guest
+            if ($department === 'GUEST' || $status === 'GUEST') {
+                $isGuest = true;
+                $guest_message_display = 'block'; // Show guest message
+            }
+        }
+    }
+}
+
+// Send response as JSON, including log_id
+echo json_encode([
+    'log_id' => $log_id, 
+    'isGuest' => $isGuest,
+    'access_denied' => $access_denied,
+    'guest_message_display' => $guest_message_display,
+    'display_time_in' => $display_time_in,
+    'full_name' => $name,
+    'image_path' => $image,
+    'status_name' => $status,
+    'department_name' => $department,
+    'school_id' => $school_id,
+    'logo_image' => $logo_image,
+    'bg_image' => $bg_image
+]);
+?>
